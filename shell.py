@@ -1,15 +1,15 @@
 import shlex
 import re
 import os
-import glob as glob_module
+import fnmatch
 from commands import CommandExecutor
+
 
 class Shell:
     def __init__(self, system):
         self.system = system
         self.executor = CommandExecutor(system)
         self.interrupted = False
-        self.last_command = ''
         self.pipe_buffer = None
 
     def execute(self, command_line):
@@ -25,7 +25,6 @@ class Shell:
                 break
         
         command_line = self.expand_variables(command_line)
-        command_line = self.expand_history(command_line)
         
         if '|' in command_line:
             return self.execute_pipeline(command_line)
@@ -90,7 +89,6 @@ class Shell:
 
     def execute_pipeline(self, command_line):
         commands = [cmd.strip() for cmd in command_line.split('|')]
-        
         output = ''
         for i, cmd in enumerate(commands):
             if i > 0:
@@ -98,74 +96,29 @@ class Shell:
             output = self.execute(cmd)
             if self.interrupted:
                 break
-        
         self.pipe_buffer = None
         return output
 
     def expand_variables(self, command_line):
         def replace_var(match):
             var_name = match.group(1) or match.group(2)
-            
             if var_name == '?':
                 return str(self.system.last_exit_code)
             elif var_name == '$':
                 return str(os.getpid())
-            elif var_name == '!':
-                return str(os.getpid())
-            elif var_name == '0':
-                return 'bash'
-            elif var_name == '#':
-                return '0'
-            elif var_name == '*' or var_name == '@':
-                return ''
             elif var_name == 'HOME':
                 return self.system.environment.get('HOME', '/root')
             elif var_name == 'PWD':
                 return self.system.filesystem.cwd
-            elif var_name == 'OLDPWD':
-                return self.system.environment.get('OLDPWD', '')
             elif var_name == 'USER':
                 return self.system.current_user or 'root'
             elif var_name == 'HOSTNAME':
                 return self.system.hostname
-            elif var_name == 'RANDOM':
-                import random
-                return str(random.randint(0, 32767))
-            elif var_name == 'SECONDS':
-                return str(int(self.system.get_uptime()))
-            elif var_name == 'LINENO':
-                return '1'
-            
             return self.system.environment.get(var_name, '')
         
-        result = re.sub(r'\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*|\?|\$|!|#|\*|@|[0-9])', replace_var, command_line)
-        
+        result = re.sub(r'\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*|\?|\$)', replace_var, command_line)
         result = result.replace('~', self.system.environment.get('HOME', '/root'))
-        
         return result
-
-    def expand_history(self, command_line):
-        if command_line == '!!':
-            if self.system.history:
-                return self.system.history[-1]
-            return ''
-        
-        if command_line.startswith('!'):
-            rest = command_line[1:]
-            if rest.isdigit():
-                idx = int(rest) - 1
-                if 0 <= idx < len(self.system.history):
-                    return self.system.history[idx]
-            elif rest.startswith('-') and rest[1:].isdigit():
-                idx = -int(rest[1:])
-                if abs(idx) <= len(self.system.history):
-                    return self.system.history[idx]
-            else:
-                for cmd in reversed(self.system.history):
-                    if cmd.startswith(rest):
-                        return cmd
-        
-        return command_line
 
     def expand_globs(self, parts):
         result = []
@@ -183,55 +136,36 @@ class Shell:
 
     def _glob_match(self, base_path, pattern):
         matches = []
-        
         files = self.system.filesystem.list_dir(base_path)
         if files is None:
             return matches
-        
-        import fnmatch
         for f in files:
             if fnmatch.fnmatch(f, pattern):
                 matches.append(f)
-        
         return matches
 
     def tab_complete(self, partial):
         completions = []
-        
         parts = partial.split()
         
         if not parts or (len(parts) == 1 and not partial.endswith(' ')):
             prefix = parts[0] if parts else ''
-            
             builtins = ['cd', 'pwd', 'echo', 'export', 'alias', 'unalias', 'history', 
                        'exit', 'source', 'set', 'unset', 'type', 'help', 'jobs', 
-                       'fg', 'bg', 'wait', 'kill', 'exec', 'eval', 'read', 'test',
-                       'true', 'false', 'return', 'break', 'continue', 'shift',
-                       'getopts', 'hash', 'ulimit', 'umask', 'times', 'trap',
-                       'declare', 'local', 'readonly', 'let', 'pushd', 'popd', 'dirs']
-            
+                       'fg', 'bg', 'kill', 'test', 'true', 'false']
             commands = ['ls', 'cat', 'grep', 'find', 'ps', 'top', 'kill', 'mkdir', 
                        'rm', 'cp', 'mv', 'touch', 'chmod', 'chown', 'df', 'du',
                        'free', 'uname', 'hostname', 'date', 'cal', 'uptime',
-                       'whoami', 'id', 'who', 'w', 'last', 'head', 'tail', 'wc',
-                       'sort', 'uniq', 'cut', 'tr', 'sed', 'awk', 'diff', 'tar',
-                       'gzip', 'gunzip', 'zip', 'unzip', 'ifconfig', 'ip', 'ping',
-                       'netstat', 'ss', 'curl', 'wget', 'ssh', 'scp', 'man',
-                       'which', 'whereis', 'file', 'stat', 'ln', 'env', 'printenv',
-                       'clear', 'reset', 'less', 'more', 'nano', 'vi', 'vim',
-                       'apt', 'apt-get', 'dpkg', 'systemctl', 'service', 'journalctl',
-                       'mount', 'umount', 'fdisk', 'lsblk', 'blkid', 'dmesg',
-                       'lsmod', 'modprobe', 'useradd', 'userdel', 'passwd', 'su', 'sudo',
-                       'shutdown', 'reboot', 'poweroff', 'halt', 'init']
-            
+                       'whoami', 'id', 'who', 'head', 'tail', 'wc', 'sort', 'uniq',
+                       'ifconfig', 'ip', 'ping', 'netstat', 'curl', 'wget',
+                       'apt', 'dpkg', 'systemctl', 'service', 'man', 'clear',
+                       'shutdown', 'reboot', 'poweroff']
             all_cmds = list(set(builtins + commands + list(self.system.aliases.keys())))
-            
             for cmd in all_cmds:
                 if cmd.startswith(prefix):
                     completions.append(cmd)
         else:
             path_part = parts[-1] if parts else ''
-            
             if '/' in path_part:
                 dir_path = '/'.join(path_part.split('/')[:-1]) or '/'
                 prefix = path_part.split('/')[-1]
@@ -241,11 +175,9 @@ class Shell:
             
             resolved = self.system.filesystem.resolve_path(dir_path)
             files = self.system.filesystem.list_dir(resolved)
-            
             if files:
                 for f in files:
                     if f.startswith(prefix):
-                        full_path = f"{dir_path}/{f}" if dir_path != '/' else f"/{f}"
                         if self.system.filesystem.is_dir(f"{resolved}/{f}"):
                             completions.append(f + '/')
                         else:
