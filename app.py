@@ -1,11 +1,15 @@
-from flask import Flask, render_template, request, jsonify, session
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
-import os
 import secrets
-import json
 import time
 import threading
+
 from kernel import Kernel
 from filesystem import FileSystem
 from process_manager import ProcessManager
@@ -31,16 +35,15 @@ class LinuxSystem:
         self.state = 'off'
         self.runlevel = 0
         self.memory_manager = MemoryManager()
-        self.filesystem = FileSystem(self.memory_manager)
+        self.filesystem = FileSystem()
         self.user_manager = UserManager(self.filesystem)
         self.device_manager = DeviceManager()
-        self.process_manager = ProcessManager(self.memory_manager)
+        self.process_manager = ProcessManager()
         self.network_manager = NetworkManager()
         self.systemd = SystemD(self)
         self.package_manager = PackageManager(self.filesystem)
         self.shell = Shell(self)
         self.kernel = Kernel(self)
-        self.boot_messages = []
         self.current_user = None
         self.hostname = 'localhost'
         self.environment = {
@@ -64,16 +67,9 @@ class LinuxSystem:
             'la': 'ls -A',
             'l': 'ls -CF',
             '..': 'cd ..',
-            '...': 'cd ../..',
             'cls': 'clear',
             'h': 'history',
             'grep': 'grep --color=auto',
-            'df': 'df -h',
-            'du': 'du -h',
-            'free': 'free -h',
-            'ports': 'netstat -tulanp',
-            'update': 'apt update',
-            'upgrade': 'apt upgrade'
         }
         self.jobs = []
         self.last_exit_code = 0
@@ -82,7 +78,6 @@ class LinuxSystem:
         if self.state == 'running':
             callback("[WARN] System already running\n")
             return
-        
         self.state = 'booting'
         self.boot_time = time.time()
         self.kernel.boot(callback)
@@ -93,11 +88,9 @@ class LinuxSystem:
         if self.state != 'running':
             callback("[WARN] System not running\n")
             return
-        
         self.state = 'shutting_down'
         self.systemd.stop_all_services(callback)
         self.kernel.shutdown(callback, reboot)
-        
         if reboot:
             self.state = 'off'
             time.sleep(0.5)
@@ -114,34 +107,32 @@ class LinuxSystem:
     def execute_command(self, command):
         if self.state != 'running':
             return "System not running. Boot first.\n"
-        
         if command.strip():
             self.history.append(command)
-        
         return self.shell.execute(command)
 
     def get_prompt(self):
         if self.state != 'running':
             return ""
-        
         user = self.current_user or 'root'
         cwd = self.filesystem.cwd
-        
         if cwd.startswith(self.environment.get('HOME', '/root')):
             cwd = '~' + cwd[len(self.environment.get('HOME', '/root')):]
-        
         if user == 'root':
             return f"{user}@{self.hostname}:{cwd}# "
         return f"{user}@{self.hostname}:{cwd}$ "
+
 
 def get_system(session_id):
     if session_id not in sessions:
         sessions[session_id] = LinuxSystem(session_id)
     return sessions[session_id]
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/api/status/<session_id>')
 def status(session_id):
@@ -155,10 +146,12 @@ def status(session_id):
         'user': system.current_user or 'root'
     })
 
+
 @socketio.on('connect')
 def handle_connect():
     session_id = request.args.get('session_id', secrets.token_hex(16))
     emit('session', {'session_id': session_id})
+
 
 @socketio.on('boot')
 def handle_boot(data):
@@ -169,12 +162,12 @@ def handle_boot(data):
         emit('output', {'data': msg})
         socketio.sleep(0.02)
     
-    threading.Thread(target=lambda: boot_system(system, callback, session_id)).start()
-
-def boot_system(system, callback, session_id):
-    with app.app_context():
+    def boot_thread():
         system.boot(callback)
         socketio.emit('boot_complete', {'prompt': system.get_prompt()}, room=request.sid)
+    
+    threading.Thread(target=boot_thread).start()
+
 
 @socketio.on('command')
 def handle_command(data):
@@ -201,6 +194,7 @@ def handle_command(data):
     output = system.execute_command(command)
     emit('output', {'data': output, 'prompt': system.get_prompt()})
 
+
 @socketio.on('sync_fs')
 def handle_sync_fs(data):
     session_id = data.get('session_id')
@@ -210,11 +204,13 @@ def handle_sync_fs(data):
         system.filesystem.load_from_dict(fs_data)
     emit('sync_complete', {'filesystem': system.filesystem.to_dict()})
 
+
 @socketio.on('get_fs')
 def handle_get_fs(data):
     session_id = data.get('session_id')
     system = get_system(session_id)
     emit('filesystem_data', {'filesystem': system.filesystem.to_dict()})
+
 
 @socketio.on('tab_complete')
 def handle_tab_complete(data):
@@ -224,6 +220,7 @@ def handle_tab_complete(data):
     completions = system.shell.tab_complete(partial)
     emit('completions', {'completions': completions})
 
+
 @socketio.on('signal')
 def handle_signal(data):
     session_id = data.get('session_id')
@@ -232,6 +229,7 @@ def handle_signal(data):
     if signal == 'SIGINT':
         system.shell.interrupt()
         emit('output', {'data': '^C\n', 'prompt': system.get_prompt()})
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
