@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyLinux Terminal</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="terminal-container">
+        <div id="terminal-header">
+            <div class="terminal-buttons">
+                <span class="terminal-button close"></span>
+                <span class="terminal-button minimize"></span>
+                <span class="terminal-button maximize"></span>
+            </div>
+            <div class="terminal-title">root@localhost: ~</div>
+            <div class="terminal-status">
+                <span id="status-indicator" class="status-off">●</span>
+                <span id="status-text">Powered Off</span>
+            </div>
+        </div>
+        <div id="terminal">
+            <div id="output"></div>
+            <div id="input-line">
+                <span id="prompt"></span>
+                <input type="text" id="command-input" autofocus autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+        <div id="controls">
+            <button id="boot-btn" class="control-btn">Boot System</button>
+            <button id="shutdown-btn" class="control-btn" disabled>Shutdown</button>
+            <button id="reboot-btn" class="control-btn" disabled>Reboot</button>
+            <button id="clear-btn" class="control-btn">Clear</button>
+        </div>
+        <div id="system-info">
+            <div class="info-item">
+                <span class="info-label">CPU:</span>
+                <span id="cpu-usage">0%</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Memory:</span>
+                <span id="mem-usage">0%</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Uptime:</span>
+                <span id="uptime">0:00:00</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Processes:</span>
+                <span id="processes">0</span>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/indexeddb.js"></script>
+    <script src="/static/terminal.js"></script>
+</body>
+</html>
