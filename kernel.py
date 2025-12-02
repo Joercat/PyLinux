@@ -2,7 +2,7 @@ import time
 import platform
 import random
 import psutil
-import os
+
 
 class Kernel:
     def __init__(self, system):
@@ -10,17 +10,9 @@ class Kernel:
         self.version = "6.1.0-pylinux"
         self.release = "6.1.0-1-amd64"
         self.sysname = "Linux"
-        self.machine = platform.machine()
+        self.machine = platform.machine() or "x86_64"
         self.modules = []
-        self.kernel_params = {
-            'quiet': False,
-            'splash': False,
-            'ro': True,
-            'root': '/dev/sda1'
-        }
         self.dmesg_buffer = []
-        self.interrupts = {}
-        self.loadavg = [0.0, 0.0, 0.0]
 
     def log(self, timestamp, level, subsystem, message):
         entry = f"[{timestamp:>10.6f}] [{level}] {subsystem}: {message}"
@@ -50,44 +42,19 @@ class Kernel:
         callback(self.log(t, "INFO", "kernel", f"Command line: BOOT_IMAGE=/boot/vmlinuz-{self.release} root=/dev/sda1 ro quiet"))
         t += 0.000156
         
-        callback(self.log(t, "INFO", "kernel", f"x86/fpu: x87 FPU on CPU"))
-        t += 0.000089
-        
-        callback(self.log(t, "INFO", "kernel", "BIOS-provided physical RAM map:"))
-        t += 0.000045
-        
         mem_total = psutil.virtual_memory().total
-        callback(self.log(t, "INFO", "kernel", f"BIOS-e820: [mem 0x0000000000000000-0x{mem_total:016x}] usable"))
-        t += 0.000123
-        
-        callback(self.log(t, "INFO", "kernel", f"Memory: {mem_total // 1024}K/available"))
+        callback(self.log(t, "INFO", "kernel", f"Memory: {mem_total // 1024}K available"))
         t += 0.001234
         
-        callback(self.log(t, "INFO", "kernel", "CPU: Physical Processor ID: 0"))
-        t += 0.000567
-        
-        cpu_count = psutil.cpu_count()
+        cpu_count = psutil.cpu_count() or 1
         callback(self.log(t, "INFO", "kernel", f"smpboot: Allowing {cpu_count} CPUs"))
         t += 0.002341
         
         callback(self.log(t, "INFO", "kernel", "Security Framework initialized"))
-        t += 0.000234
-        callback(self.log(t, "INFO", "kernel", "LSM: Security Framework initialized"))
         t += 0.000456
-        
-        callback(self.log(t, "INFO", "kernel", "Dentry cache hash table entries: 262144"))
-        t += 0.000789
-        callback(self.log(t, "INFO", "kernel", "Inode-cache hash table entries: 131072"))
-        t += 0.000234
         
         callback(self.log(t, "INFO", "kernel", "Mount-cache hash table entries: 4096"))
         t += 0.001234
-        
-        callback(self.log(t, "INFO", "kernel", "CPU0: Thermal monitoring enabled"))
-        t += 0.002345
-        
-        callback(self.log(t, "INFO", "kernel", f"smpboot: CPU{cpu_count-1} booted"))
-        t += 0.003456
         
         callback(self.log(t, "INFO", "kernel", "NET: Registered PF_NETLINK/PF_ROUTE protocol family"))
         t += 0.000234
@@ -95,44 +62,15 @@ class Kernel:
         callback(self.log(t, "INFO", "kernel", "PCI: Using configuration type 1"))
         t += 0.001234
         
-        callback(self.log(t, "INFO", "kernel", "ACPI: Core revision 20220331"))
-        t += 0.002345
-        
         callback(self.log(t, "INFO", "kernel", "clocksource: Switched to clocksource tsc"))
         t += 0.000567
         
-        callback(self.log(t, "INFO", "kernel", "VFS: Disk quotas dquot_6.6.0"))
-        t += 0.000234
-        callback(self.log(t, "INFO", "kernel", "VFS: Dquot-cache hash table entries: 512"))
-        t += 0.000456
-        
-        callback(self.log(t, "INFO", "kernel", "NET: Registered PF_INET protocol family"))
-        t += 0.001234
-        callback(self.log(t, "INFO", "kernel", "NET: Registered PF_INET6 protocol family"))
-        t += 0.000567
-        
-        callback(self.log(t, "INFO", "kernel", "RPC: Registered named UNIX socket transport module"))
-        t += 0.000234
-        callback(self.log(t, "INFO", "kernel", "RPC: Registered udp transport module"))
-        t += 0.000123
-        callback(self.log(t, "INFO", "kernel", "RPC: Registered tcp transport module"))
-        t += 0.000234
-        
         modules = [
             ("ext4", "EXT4-fs driver"),
-            ("xfs", "XFS filesystem driver"),
-            ("btrfs", "BTRFS filesystem driver"),
             ("dm_mod", "Device Mapper driver"),
             ("sd_mod", "SCSI disk driver"),
             ("ahci", "AHCI SATA driver"),
-            ("nvme", "NVMe driver"),
-            ("usb_storage", "USB Mass Storage driver"),
-            ("usbhid", "USB HID driver"),
-            ("i915", "Intel Graphics driver"),
-            ("snd_hda_intel", "Intel HD Audio driver"),
             ("e1000e", "Intel Ethernet driver"),
-            ("iwlwifi", "Intel Wireless driver"),
-            ("bluetooth", "Bluetooth driver"),
             ("virtio_blk", "VirtIO Block driver"),
             ("virtio_net", "VirtIO Network driver")
         ]
@@ -146,22 +84,14 @@ class Kernel:
         callback(self.log(t, "INFO", "kernel", "Freeing unused kernel memory: 2048K"))
         t += 0.002
         
-        callback(self.log(t, "INFO", "kernel", "Write protecting kernel text and rodata"))
-        t += 0.001
-        
-        callback(self.log(t, "INFO", "kernel", "systemd[1]: Detected virtualization"))
-        t += 0.003
         callback(self.log(t, "INFO", "kernel", "systemd[1]: Detected architecture x86-64"))
         t += 0.001
-        callback(self.log(t, "INFO", "kernel", "systemd[1]: Running in initial RAM disk"))
-        t += 0.002
         
         callback("\n")
         callback("Starting systemd services...\n")
         callback("\n")
         
         self.system.systemd.start_services(callback)
-        
         self.system.filesystem.initialize()
         self.system.process_manager.create_init_processes()
         self.system.user_manager.initialize()
@@ -179,11 +109,15 @@ class Kernel:
         callback("Welcome to PyLinux 6.1.0!\n")
         callback(f"  System information as of {time.strftime('%a %b %d %H:%M:%S %Z %Y')}\n")
         callback("\n")
-        callback(f"  System load:  {psutil.getloadavg()[0]:.2f}\n")
+        
+        try:
+            load = psutil.getloadavg()
+            callback(f"  System load:  {load[0]:.2f}\n")
+        except:
+            callback(f"  System load:  0.00\n")
+        
         callback(f"  Memory usage: {psutil.virtual_memory().percent:.0f}%\n")
-        callback(f"  Swap usage:   {psutil.swap_memory().percent:.0f}%\n")
         callback(f"  Processes:    {self.system.process_manager.get_count()}\n")
-        callback(f"  Users:        1 user logged in\n")
         callback("\n")
 
     def shutdown(self, callback, reboot=False):
@@ -221,8 +155,6 @@ class Kernel:
             'r': self.release,
             'v': f"#1 SMP PREEMPT_DYNAMIC {time.strftime('%a %b %d %H:%M:%S UTC %Y')}",
             'm': self.machine,
-            'p': self.machine,
-            'i': self.machine,
             'o': "GNU/Linux"
         }
         
@@ -234,10 +166,3 @@ class Kernel:
             if opt in parts:
                 result.append(parts[opt])
         return " ".join(result)
-
-    def get_loadavg(self):
-        try:
-            load = psutil.getloadavg()
-            return f"{load[0]:.2f} {load[1]:.2f} {load[2]:.2f} {self.system.process_manager.get_running_count()}/{self.system.process_manager.get_count()} {self.system.process_manager.get_last_pid()}"
-        except:
-            return "0.00 0.00 0.00 1/1 1"
