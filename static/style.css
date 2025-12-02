@@ -1,0 +1,277 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 20px;
+}
+
+#terminal-container {
+    width: 100%;
+    max-width: 1000px;
+    background: #0d0d0d;
+    border-radius: 10px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 255, 0, 0.1);
+    overflow: hidden;
+}
+
+#terminal-header {
+    background: linear-gradient(to bottom, #3d3d3d, #2d2d2d);
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+.terminal-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.terminal-button {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.terminal-button.close {
+    background: #ff5f56;
+}
+
+.terminal-button.minimize {
+    background: #ffbd2e;
+}
+
+.terminal-button.maximize {
+    background: #27c93f;
+}
+
+.terminal-title {
+    color: #888;
+    font-size: 13px;
+}
+
+.terminal-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #888;
+    font-size: 12px;
+}
+
+.status-off {
+    color: #ff5f56;
+}
+
+.status-booting {
+    color: #ffbd2e;
+    animation: pulse 1s infinite;
+}
+
+.status-on {
+    color: #27c93f;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+#terminal {
+    height: 500px;
+    padding: 15px;
+    overflow-y: auto;
+    background: #0d0d0d;
+    color: #00ff00;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+#terminal::-webkit-scrollbar {
+    width: 8px;
+}
+
+#terminal::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+#terminal::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+#terminal::-webkit-scrollbar-thumb:hover {
+    background: #444;
+}
+
+#output {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+#output .error {
+    color: #ff6b6b;
+}
+
+#output .success {
+    color: #51cf66;
+}
+
+#output .warning {
+    color: #ffd43b;
+}
+
+#output .info {
+    color: #74c0fc;
+}
+
+#output .boot-message {
+    color: #adb5bd;
+}
+
+#input-line {
+    display: flex;
+    align-items: center;
+    margin-top: 5px;
+}
+
+#prompt {
+    color: #00ff00;
+    margin-right: 5px;
+    white-space: nowrap;
+}
+
+#command-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #00ff00;
+    font-family: inherit;
+    font-size: inherit;
+    caret-color: #00ff00;
+}
+
+#command-input::selection {
+    background: #00ff00;
+    color: #0d0d0d;
+}
+
+#controls {
+    padding: 15px;
+    background: #1a1a1a;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-top: 1px solid #2d2d2d;
+}
+
+.control-btn {
+    padding: 10px 20px;
+    border: 1px solid #00ff00;
+    background: transparent;
+    color: #00ff00;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.control-btn:hover:not(:disabled) {
+    background: #00ff00;
+    color: #0d0d0d;
+}
+
+.control-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #555;
+    color: #555;
+}
+
+#system-info {
+    padding: 10px 15px;
+    background: #111;
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 15px;
+    border-top: 1px solid #2d2d2d;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.info-label {
+    color: #666;
+}
+
+.info-item span:last-child {
+    color: #00ff00;
+    font-weight: bold;
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+    
+    #terminal {
+        height: 400px;
+        font-size: 12px;
+    }
+    
+    .control-btn {
+        padding: 8px 15px;
+        font-size: 12px;
+    }
+    
+    #system-info {
+        justify-content: flex-start;
+    }
+}
+
+.cursor-blink {
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+.completion-popup {
+    position: absolute;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.completion-item {
+    padding: 5px 10px;
+    cursor: pointer;
+    color: #00ff00;
+}
+
+.completion-item:hover,
+.completion-item.selected {
+    background: #333;
+}
